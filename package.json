@@ -1,0 +1,32 @@
+{
+  "name": "gspend",
+  "version": "0.0.1",
+  "description": "See what you've actually spent on GCP",
+  "type": "module",
+  "bin": {
+    "gspend": "./dist/cli/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli/index.ts",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "check": "biome check .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "gcp",
+    "google-cloud",
+    "cost",
+    "billing",
+    "cli",
+    "devtools"
+  ],
+  "author": "mulkatz",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  }
+}

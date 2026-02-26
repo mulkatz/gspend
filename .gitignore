@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Credentials & secrets
+credentials/
+*.key
+*.pem
+*.p12
+serviceaccount*.json
+*-credentials.json
+.gcloud/
+
+# GCP
+.gcloudignore
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Local database
+*.db
+*.sqlite
+*.sqlite3
+
+# Config with secrets
+config.local.*
