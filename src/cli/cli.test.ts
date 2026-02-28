@@ -27,7 +27,7 @@ describe('CLI smoke', () => {
 		const output = execFileSync('npx', ['tsx', 'src/cli/index.ts', '--version'], {
 			encoding: 'utf-8',
 		});
-		expect(output.trim()).toBe('0.0.1');
+		expect(output.trim()).toBe('0.7.0');
 	});
 
 	it('status without config gives ConfigError hint', () => {
