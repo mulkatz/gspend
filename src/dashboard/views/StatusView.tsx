@@ -1,5 +1,6 @@
 import { Box, Text } from 'ink';
 import type { ReactNode } from 'react';
+import { useEffect } from 'react';
 import type { Config } from '../../config.js';
 import { BarChart } from '../components/BarChart.js';
 import { BudgetGauge } from '../components/BudgetGauge.js';
@@ -11,6 +12,7 @@ import { useCostData } from '../hooks/useCostData.js';
 interface StatusViewProps {
 	config: Config;
 	filterProjectId: string | undefined;
+	onDataFreshness?: (date: Date) => void;
 }
 
 function fmt(amount: number, currency: string): string {
@@ -18,8 +20,18 @@ function fmt(amount: number, currency: string): string {
 	return `${symbol}${amount.toFixed(2)}`;
 }
 
-export function StatusView({ config, filterProjectId }: StatusViewProps): ReactNode {
+export function StatusView({
+	config,
+	filterProjectId,
+	onDataFreshness,
+}: StatusViewProps): ReactNode {
 	const { status, budgets, loading, error } = useCostData(config, filterProjectId);
+
+	useEffect(() => {
+		if (status && onDataFreshness) {
+			onDataFreshness(new Date(status.dataFreshness));
+		}
+	}, [status, onDataFreshness]);
 
 	if (loading) return <LoadingView message="Fetching cost data..." />;
 	if (error) return <ErrorView message={error} />;

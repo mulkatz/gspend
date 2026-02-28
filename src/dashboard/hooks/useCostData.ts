@@ -29,8 +29,14 @@ export function useCostData(config: Config, filterProjectId: string | undefined)
 				setStatus(result);
 
 				const budgetMap = new Map<string, BudgetStatus>();
-				for (const project of config.projects) {
-					if (filterProjectId && project.projectId !== filterProjectId) continue;
+				// Budget comparison is only accurate when filtering to a single project,
+				// because netMonth is an aggregate across all queried projects.
+				const budgetProjects = filterProjectId
+					? config.projects.filter((p) => p.projectId === filterProjectId)
+					: config.projects.length === 1
+						? config.projects
+						: [];
+				for (const project of budgetProjects) {
 					const bs = getBudgetStatus(project, result.netMonth);
 					if (bs) budgetMap.set(project.projectId, bs);
 				}

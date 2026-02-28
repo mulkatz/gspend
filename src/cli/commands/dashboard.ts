@@ -8,7 +8,8 @@ export const dashboardCommand = new Command('dashboard')
 	.action(async (opts, cmd) => {
 		const parentOpts = cmd.parent?.opts() as { project?: string } | undefined;
 		const filterProject = parentOpts?.project;
-		const intervalSec = Number.parseInt((opts as { interval: string }).interval, 10);
+		const raw = Number.parseInt((opts as { interval: string }).interval, 10);
+		const intervalSec = Number.isFinite(raw) && raw > 0 ? raw : 300;
 
 		try {
 			const config = loadConfig();

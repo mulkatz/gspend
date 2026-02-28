@@ -1,6 +1,6 @@
 import { Box, useApp, useInput } from 'ink';
 import type { ReactNode } from 'react';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { Config } from '../config.js';
 import { Header } from './components/Header.js';
 import { HelpBar } from './components/HelpBar.js';
@@ -30,6 +30,7 @@ export function App({ config, initialProject, refreshInterval }: AppProps): Reac
 	const [activeTab, setActiveTab] = useState<TabKey>('status');
 	const [filterProject, setFilterProject] = useState(initialProject);
 	const [refreshKey, setRefreshKey] = useState(0);
+	const [dataFreshness, setDataFreshness] = useState<Date | null>(null);
 
 	const handleRefresh = useCallback(() => {
 		setRefreshKey((k) => k + 1);
@@ -74,7 +75,14 @@ export function App({ config, initialProject, refreshInterval }: AppProps): Reac
 		? `project: ${filterProject}`
 		: `All Projects (${config.projects.length})`;
 
-	const viewProps = { config, filterProjectId: filterProject, key: refreshKey };
+	const viewProps = useMemo(
+		() => ({ config, filterProjectId: filterProject }),
+		[config, filterProject],
+	);
+
+	const handleDataFreshness = useCallback((date: Date) => {
+		setDataFreshness(date);
+	}, []);
 
 	return (
 		<Box flexDirection="column" paddingX={1}>
@@ -82,13 +90,15 @@ export function App({ config, initialProject, refreshInterval }: AppProps): Reac
 				tabs={[...TABS]}
 				activeTab={activeTab}
 				projectScope={scopeLabel}
-				dataFreshness={null}
+				dataFreshness={dataFreshness}
 			/>
 			<Box minHeight={10}>
-				{activeTab === 'status' && <StatusView {...viewProps} />}
-				{activeTab === 'breakdown' && <BreakdownView {...viewProps} />}
-				{activeTab === 'history' && <HistoryView {...viewProps} />}
-				{activeTab === 'budget' && <BudgetView {...viewProps} />}
+				{activeTab === 'status' && (
+					<StatusView {...viewProps} key={refreshKey} onDataFreshness={handleDataFreshness} />
+				)}
+				{activeTab === 'breakdown' && <BreakdownView {...viewProps} key={refreshKey} />}
+				{activeTab === 'history' && <HistoryView {...viewProps} key={refreshKey} />}
+				{activeTab === 'budget' && <BudgetView {...viewProps} key={refreshKey} />}
 			</Box>
 			<HelpBar countdown={countdown} />
 		</Box>

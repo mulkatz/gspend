@@ -11,7 +11,10 @@ export function renderDashboard(
 		<App config={config} initialProject={filterProject} refreshInterval={refreshInterval} />,
 	);
 
-	waitUntilExit().catch(() => {
-		// Graceful exit
+	waitUntilExit().catch((err: unknown) => {
+		process.stderr.write(
+			`\nDashboard error: ${err instanceof Error ? err.message : String(err)}\n`,
+		);
+		process.exitCode = 1;
 	});
 }

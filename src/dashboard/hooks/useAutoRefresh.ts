@@ -22,19 +22,21 @@ export function useAutoRefresh(intervalSec: number, onRefresh: () => void): Auto
 		onRefreshRef.current();
 	}, [intervalSec]);
 
+	// Tick countdown every second; trigger refresh when it hits zero
+	const countdownRef = useRef(intervalSec);
+	countdownRef.current = countdown;
+
 	useEffect(() => {
 		const timer = setInterval(() => {
-			setCountdown((prev) => {
-				if (prev <= 1) {
-					refresh();
-					return intervalSec;
-				}
-				return prev - 1;
-			});
+			if (countdownRef.current <= 1) {
+				refresh();
+			} else {
+				setCountdown((prev) => prev - 1);
+			}
 		}, 1000);
 
 		return () => clearInterval(timer);
-	}, [intervalSec, refresh]);
+	}, [refresh]);
 
 	return { countdown, refresh, lastRefresh };
 }
