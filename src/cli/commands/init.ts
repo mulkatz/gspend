@@ -16,6 +16,7 @@ import {
 	getDataFreshness,
 } from '../../gcp/bigquery.js';
 import { type BillingAccount, discoverProjects, listBillingAccounts } from '../../gcp/projects.js';
+import { getConfigPath } from '../../paths.js';
 import { closeDb, getDb } from '../../store/db.js';
 import { formatFreshness } from '../../ui/freshness.js';
 import { billingExportUrl, terminalLink } from '../../ui/links.js';
@@ -445,7 +446,7 @@ export const initCommand = new Command('init')
 		};
 
 		saveConfig(config);
-		p.log.success(`Config saved to ${chalk.dim('~/.config/gspend/config.json')}`);
+		p.log.success(`Config saved to ${chalk.dim(getConfigPath())}`);
 
 		// ─── Phase 6: Initialize database ───
 		const dbSpinner = p.spinner();
