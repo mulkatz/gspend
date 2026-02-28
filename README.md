@@ -1,5 +1,10 @@
 # gspend
 
+[![CI](https://github.com/mulkatz/gspend/actions/workflows/ci.yml/badge.svg)](https://github.com/mulkatz/gspend/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/gspend)](https://www.npmjs.com/package/gspend)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node](https://img.shields.io/node/v/gspend)](https://nodejs.org)
+
 See what you've actually spent on GCP — right in your terminal.
 
 Unlike cost estimators that calculate hypothetical costs from YAML files, gspend queries your BigQuery billing export to show **real spending data**.
@@ -49,7 +54,7 @@ Show current spending overview with today's costs, weekly/monthly totals, trend 
 
 ### `gspend init`
 
-Interactive setup wizard that discovers your billing accounts, projects, and BigQuery billing export. Creates the config file at `~/.config/gspend/config.json`.
+Interactive setup wizard that discovers your billing accounts, projects, and BigQuery billing export. Creates the config file in your OS-standard config directory (`$XDG_CONFIG_HOME/gspend/` on Linux, `~/Library/Preferences/gspend/` on macOS, `%APPDATA%\gspend\` on Windows).
 
 ### `gspend breakdown`
 
