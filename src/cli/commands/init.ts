@@ -1,39 +1,164 @@
+import { execFileSync } from 'node:child_process';
 import * as readline from 'node:readline';
 import * as p from '@clack/prompts';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import { type Config, type ProjectConfig, saveConfig } from '../../config.js';
 import { GspendError } from '../../errors.js';
-import { checkBillingPermissions, validateCredentials } from '../../gcp/auth.js';
-import { type DiscoveredExport, discoverBillingExport } from '../../gcp/bigquery.js';
+import {
+	checkAdcFileExists,
+	checkBillingPermissions,
+	validateCredentials,
+} from '../../gcp/auth.js';
+import {
+	type DiscoveredExport,
+	discoverBillingExport,
+	getDataFreshness,
+} from '../../gcp/bigquery.js';
 import { type BillingAccount, discoverProjects, listBillingAccounts } from '../../gcp/projects.js';
 import { closeDb, getDb } from '../../store/db.js';
+import { formatFreshness } from '../../ui/freshness.js';
 import { billingExportUrl, terminalLink } from '../../ui/links.js';
+
+function checkGcloudInstalled(): boolean {
+	try {
+		execFileSync('which', ['gcloud'], { stdio: 'ignore' });
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+const WAIT_POLL_MS = 3000;
+const WAIT_TIMEOUT_MS = 5 * 60 * 1000;
+
+async function waitForCredentials(): Promise<{ email: string } | null> {
+	const rl = readline.createInterface({ input: process.stdin });
+	let cancelled = false;
+	let enterPressed = false;
+
+	const enterPromise = new Promise<void>((resolve) => {
+		rl.once('line', () => {
+			enterPressed = true;
+			resolve();
+		});
+		rl.once('close', () => {
+			cancelled = true;
+			resolve();
+		});
+	});
+
+	const startTime = Date.now();
+
+	try {
+		while (Date.now() - startTime < WAIT_TIMEOUT_MS) {
+			if (cancelled) return null;
+
+			if (enterPressed || checkAdcFileExists()) {
+				try {
+					const creds = await validateCredentials();
+					return { email: creds.email };
+				} catch {
+					// Credentials exist but invalid/expired — keep waiting
+					enterPressed = false;
+				}
+			}
+
+			await Promise.race([
+				new Promise<void>((resolve) => setTimeout(resolve, WAIT_POLL_MS)),
+				enterPromise,
+			]);
+		}
+
+		// Timeout
+		return null;
+	} finally {
+		rl.close();
+	}
+}
 
 export const initCommand = new Command('init')
 	.description('Set up gspend for your GCP account')
 	.action(async () => {
 		p.intro(chalk.bold('gspend init'));
 
-		// Step 1: Validate credentials
-		const credSpinner = p.spinner();
-		credSpinner.start('Checking Application Default Credentials...');
+		// ─── Phase 0: Pre-flight checks ───
+		p.log.step('Checking prerequisites...');
+
+		const hasGcloud = checkGcloudInstalled();
+		if (hasGcloud) {
+			p.log.success('gcloud CLI found');
+		}
+
+		const hasEnvCredentials = Boolean(process.env.GOOGLE_APPLICATION_CREDENTIALS);
+		const hasAdc = checkAdcFileExists();
 
 		let email: string;
-		try {
-			const creds = await validateCredentials();
-			email = creds.email;
-			credSpinner.stop(`Authenticated as ${chalk.cyan(email)}`);
-		} catch (error) {
-			credSpinner.stop(chalk.red('Authentication failed'));
-			const msg = error instanceof GspendError ? (error.hint ?? error.message) : String(error);
-			p.log.error(msg);
-			p.outro(chalk.red('Fix authentication and try again.'));
+
+		if (hasAdc) {
+			// ADC file exists — try to validate it
+			try {
+				const creds = await validateCredentials();
+				email = creds.email;
+				p.log.success(`Authenticated as ${chalk.cyan(email)}`);
+			} catch {
+				// File exists but token expired/invalid
+				p.log.warn('Credentials need refresh');
+				p.log.info(
+					`Run in another terminal:\n\n  ${chalk.cyan('gcloud auth application-default login')}`,
+				);
+				p.log.message(chalk.dim('Waiting for credentials... (press Enter to re-check)'));
+
+				const result = await waitForCredentials();
+				if (!result) {
+					p.cancel('Setup cancelled.');
+					return;
+				}
+				email = result.email;
+				p.log.success(`Authenticated as ${chalk.cyan(email)}`);
+			}
+		} else if (hasGcloud || hasEnvCredentials) {
+			// gcloud is installed but no ADC yet, or GOOGLE_APPLICATION_CREDENTIALS points to missing file
+			p.log.warn('Application Default Credentials not found');
+			p.log.info(
+				[
+					"gspend uses Google Cloud's default credentials to access",
+					'your billing data. Run this in another terminal:',
+					'',
+					`  ${chalk.cyan('gcloud auth application-default login')}`,
+					'',
+					'This opens your browser for Google sign-in.',
+					'Come back here when done.',
+				].join('\n'),
+			);
+			p.log.message(chalk.dim('Waiting for credentials... (press Enter to re-check)'));
+
+			const result = await waitForCredentials();
+			if (!result) {
+				p.cancel('Setup cancelled.');
+				return;
+			}
+			email = result.email;
+			p.log.success(`Authenticated as ${chalk.cyan(email)}`);
+		} else {
+			// No gcloud, no env var — hard stop
+			p.log.error('gcloud CLI not found');
+			p.log.info(
+				[
+					'gspend requires Google Cloud credentials. Install the gcloud CLI:',
+					`  ${terminalLink('Google Cloud SDK', 'https://cloud.google.com/sdk/install')}`,
+					'',
+					'Or if you have a service account key:',
+					`  ${chalk.cyan('export GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json')}`,
+					'',
+					'Then run gspend init again.',
+				].join('\n'),
+			);
 			process.exitCode = 1;
 			return;
 		}
 
-		// Step 2: Discover billing accounts
+		// ─── Phase 1: Discover billing accounts ───
 		const billingSpinner = p.spinner();
 		billingSpinner.start('Discovering billing accounts...');
 
@@ -84,7 +209,7 @@ export const initCommand = new Command('init')
 			return;
 		}
 
-		// Step 3: Discover projects
+		// ─── Phase 2: Discover projects ───
 		const projSpinner = p.spinner();
 		projSpinner.start('Discovering GCP projects...');
 
@@ -125,7 +250,7 @@ export const initCommand = new Command('init')
 			return;
 		}
 
-		// Step 4: Auto-discover BigQuery billing export
+		// ─── Phase 3: Auto-discover BigQuery billing export ───
 		const discoverySpinner = p.spinner();
 		discoverySpinner.start('Scanning projects for existing billing export...');
 
@@ -279,7 +404,7 @@ export const initCommand = new Command('init')
 		const bqDataset = discovered?.datasetId ?? '';
 		const discoveredTableId = discovered?.tableId;
 
-		// Step 5: Budget configuration
+		// ─── Phase 4: Budget configuration ───
 		const projectConfigs: ProjectConfig[] = [];
 		for (const projectId of selectedProjects) {
 			const proj = billingProjects.find((pr) => pr.projectId === projectId);
@@ -307,7 +432,7 @@ export const initCommand = new Command('init')
 			});
 		}
 
-		// Step 6: Write config
+		// ─── Phase 5: Write config ───
 		const config: Config = {
 			projects: projectConfigs,
 			bigquery: {
@@ -322,12 +447,26 @@ export const initCommand = new Command('init')
 		saveConfig(config);
 		p.log.success(`Config saved to ${chalk.dim('~/.config/gspend/config.json')}`);
 
-		// Step 7: Initialize database
+		// ─── Phase 6: Initialize database ───
 		const dbSpinner = p.spinner();
 		dbSpinner.start('Initializing local database...');
 		getDb();
 		closeDb();
 		dbSpinner.stop('Database initialized');
+
+		// ─── Phase 7: Verification ───
+		if (discovered?.tableId) {
+			const verifySpinner = p.spinner();
+			verifySpinner.start('Verifying setup...');
+			try {
+				const freshness = await getDataFreshness(bqProject, bqDataset, discovered.tableId);
+				verifySpinner.stop('Setup verified');
+				p.log.success(`BigQuery connection OK — ${formatFreshness(freshness)}`);
+			} catch {
+				verifySpinner.stop(chalk.yellow('Could not verify BigQuery access'));
+				p.log.info(chalk.dim('Run `gspend status` later to check connectivity.'));
+			}
+		}
 
 		p.outro(chalk.green('gspend is ready! Run `gspend status` to see your spending.'));
 	});
