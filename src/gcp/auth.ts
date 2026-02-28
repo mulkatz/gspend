@@ -43,11 +43,26 @@ export async function validateCredentials(): Promise<Credentials> {
 			throw new AuthError('No access token received.');
 		}
 
-		// Try to get email from credentials
+		// Try to get email from credentials (works for service accounts)
 		const credentials = client.credentials;
-		const email = (credentials as { client_email?: string }).client_email ?? 'authenticated-user';
+		let email = (credentials as { client_email?: string }).client_email;
 
-		return { email, projectId };
+		// For user ADC (OAuth2), resolve email from tokeninfo endpoint
+		if (!email && tokenInfo.token) {
+			try {
+				const resp = await fetch(
+					`https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${tokenInfo.token}`,
+				);
+				if (resp.ok) {
+					const info = (await resp.json()) as { email?: string };
+					email = info.email;
+				}
+			} catch {
+				// Best-effort — fall through to fallback
+			}
+		}
+
+		return { email: email ?? 'authenticated-user', projectId };
 	} catch (error) {
 		if (error instanceof AuthError) throw error;
 		throw new AuthError(
