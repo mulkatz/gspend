@@ -52,6 +52,19 @@ export async function discoverProjects(): Promise<ProjectWithBilling[]> {
 		return projects;
 	} catch (error) {
 		const msg = error instanceof Error ? error.message : String(error);
+
+		if (msg.includes('has not been used in project') || msg.includes('it is disabled')) {
+			const urlMatch = msg.match(/https:\/\/console\.developers\.google\.com\S+/);
+			const enableUrl = urlMatch?.[0];
+			throw new ApiError(
+				'Cloud Resource Manager API is not enabled in your project.',
+				undefined,
+				enableUrl
+					? `Enable it at: ${enableUrl}\nOr run: gcloud services enable cloudresourcemanager.googleapis.com`
+					: 'Run: gcloud services enable cloudresourcemanager.googleapis.com',
+			);
+		}
+
 		throw new ApiError(
 			`Failed to discover projects: ${msg}`,
 			undefined,
@@ -72,6 +85,19 @@ export async function listBillingAccounts(): Promise<BillingAccount[]> {
 		}));
 	} catch (error) {
 		const msg = error instanceof Error ? error.message : String(error);
+
+		if (msg.includes('has not been used in project') || msg.includes('it is disabled')) {
+			const urlMatch = msg.match(/https:\/\/console\.developers\.google\.com\S+/);
+			const enableUrl = urlMatch?.[0];
+			throw new ApiError(
+				'Cloud Billing API is not enabled in your project.',
+				undefined,
+				enableUrl
+					? `Enable it at: ${enableUrl}\nOr run: gcloud services enable cloudbilling.googleapis.com`
+					: 'Run: gcloud services enable cloudbilling.googleapis.com',
+			);
+		}
+
 		throw new ApiError(
 			`Failed to list billing accounts: ${msg}`,
 			undefined,
