@@ -1,6 +1,29 @@
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { CloudBillingClient } from '@google-cloud/billing';
 import { GoogleAuth } from 'google-auth-library';
 import { AuthError, PermissionError } from '../errors.js';
+
+/**
+ * Check if Application Default Credentials exist on disk (env var or gcloud default location).
+ * Never throws — returns true/false.
+ */
+export function checkAdcFileExists(): boolean {
+	// 1. Explicit env var
+	const envPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+	if (envPath) {
+		return fs.existsSync(envPath);
+	}
+	// 2. Default gcloud ADC location
+	const defaultPath = path.join(
+		os.homedir(),
+		'.config',
+		'gcloud',
+		'application_default_credentials.json',
+	);
+	return fs.existsSync(defaultPath);
+}
 
 export interface Credentials {
 	email: string;
