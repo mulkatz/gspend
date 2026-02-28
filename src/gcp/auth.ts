@@ -1,0 +1,76 @@
+import { CloudBillingClient } from '@google-cloud/billing';
+import { GoogleAuth } from 'google-auth-library';
+import { AuthError, PermissionError } from '../errors.js';
+
+export interface Credentials {
+	email: string;
+	projectId: string | null;
+}
+
+export async function validateCredentials(): Promise<Credentials> {
+	try {
+		const auth = new GoogleAuth({
+			scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+		});
+		const client = await auth.getClient();
+		const projectId = await auth.getProjectId();
+		const tokenInfo = await client.getAccessToken();
+
+		if (!tokenInfo.token) {
+			throw new AuthError('No access token received.');
+		}
+
+		// Try to get email from credentials
+		const credentials = client.credentials;
+		const email = (credentials as { client_email?: string }).client_email ?? 'authenticated-user';
+
+		return { email, projectId };
+	} catch (error) {
+		if (error instanceof AuthError) throw error;
+		throw new AuthError(
+			'Application Default Credentials not configured.',
+			'Run: gcloud auth application-default login',
+		);
+	}
+}
+
+const REQUIRED_BILLING_PERMISSIONS = [
+	'billing.accounts.get',
+	'billing.accounts.list',
+	'billing.resourceAssociations.list',
+];
+
+export async function checkBillingPermissions(
+	billingAccountName: string,
+): Promise<{ granted: string[]; missing: string[] }> {
+	try {
+		const client = new CloudBillingClient();
+		const [response] = await client.testIamPermissions({
+			resource: billingAccountName,
+			permissions: REQUIRED_BILLING_PERMISSIONS,
+		});
+
+		const granted = response.permissions ?? [];
+		const missing = REQUIRED_BILLING_PERMISSIONS.filter((p) => !granted.includes(p));
+
+		return { granted, missing };
+	} catch (error) {
+		const msg = error instanceof Error ? error.message : String(error);
+		throw new PermissionError(
+			`Cannot check billing permissions: ${msg}`,
+			REQUIRED_BILLING_PERMISSIONS,
+			`Ensure your account has Billing Account Viewer role on ${billingAccountName}`,
+		);
+	}
+}
+
+export async function checkBigQueryAccess(projectId: string, datasetId: string): Promise<boolean> {
+	try {
+		const { BigQuery } = await import('@google-cloud/bigquery');
+		const bq = new BigQuery({ projectId });
+		await bq.dataset(datasetId).getTables({ maxResults: 1 });
+		return true;
+	} catch {
+		return false;
+	}
+}
