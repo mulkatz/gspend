@@ -6,6 +6,11 @@
   "bin": {
     "gspend": "./dist/cli/index.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/cli/index.ts",
@@ -14,7 +19,8 @@
     "check": "biome check .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run typecheck && npm run test && npm run build"
   },
   "keywords": [
     "gcp",
@@ -24,8 +30,19 @@
     "cli",
     "devtools"
   ],
-  "author": "mulkatz",
+  "author": {
+    "name": "Franz Mulkatz",
+    "url": "https://github.com/mulkatz"
+  },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mulkatz/gspend.git"
+  },
+  "homepage": "https://github.com/mulkatz/gspend#readme",
+  "bugs": {
+    "url": "https://github.com/mulkatz/gspend/issues"
+  },
   "engines": {
     "node": ">=22"
   },
