@@ -2,42 +2,56 @@
 
 ## Project Overview
 gspend is an open-source CLI tool that shows actual Google Cloud Platform spending
-by connecting to GCP Billing APIs. Unlike cost estimators (Infracost, gcosts), gspend
-tracks real billing data. Think VibeMeter, but for GCP infrastructure.
+by querying BigQuery billing export data. Unlike cost estimators (Infracost, gcosts),
+gspend tracks real billing data. Think VibeMeter, but for GCP infrastructure.
+
+**Critical constraint:** The GCP Cloud Billing API does NOT return cost data. It only
+manages billing accounts and project associations. BigQuery billing export is the ONLY
+way to get actual spending data programmatically (see ADR-002).
 
 ## Tech Stack
-- TypeScript (strict mode)
-- Node.js 22+ runtime
-- Biome for linting and formatting
+- TypeScript (strict mode, `verbatimModuleSyntax`, `exactOptionalPropertyTypes`)
+- Node.js 22+ runtime, ESM (`"type": "module"`, `"module": "Node16"`)
+- Biome v2 for linting and formatting (tabs, single quotes, 100 line width)
 - Commander.js for CLI framework
-- GCP APIs: Cloud Billing API, BigQuery (billing export)
-- SQLite (better-sqlite3) for local caching
+- chalk, cli-table3, ora, @clack/prompts for terminal UI
+- GCP APIs: `@google-cloud/bigquery` (cost data), `@google-cloud/billing` (account discovery),
+  `@google-cloud/billing-budgets`, `@google-cloud/resource-manager`, `google-auth-library`
+- SQLite (better-sqlite3) for local caching and history
+- Zod for config validation
+- env-paths for XDG-compliant config/data paths
 - Vitest for testing
 
 ## Project Structure
 Single-package CLI tool:
-- `src/cli/` – Command definitions (init, status, breakdown, history, budget, watch)
-- `src/gcp/` – GCP API wrappers (billing, bigquery, auth, projects)
-- `src/tracker/` – Cost calculation, aggregation, budgets, forecasts
-- `src/store/` – SQLite local cache
-- `src/ui/` – Terminal output formatting (tables, charts, gauges)
+- `src/cli/index.ts` – Entry point, Commander setup, all commands registered
+- `src/cli/commands/` – Command implementations (init, status, breakdown, history, budget, watch)
+- `src/gcp/` – GCP API wrappers (auth, projects, bigquery, budgets)
+- `src/tracker/` – Business logic (costs, budget, forecast, trend)
+- `src/store/` – SQLite database (db, migrations, cache, history)
+- `src/ui/` – Terminal output formatting (colors, table, chart, freshness)
+- `src/config.ts` – Zod config schema, read/write
+- `src/paths.ts` – XDG config/data paths via env-paths
+- `src/errors.ts` – Typed error classes
 - `docs/adr/` – Architecture Decision Records
-- `docs/plans/` – Implementation plans
 
 ## Code Conventions
 - All code, comments, and documentation in English
 - Strict TypeScript: no `any`, explicit return types
+- ESM with `.js` extensions on all imports
 - Zod for runtime validation of API responses and config
 - Named exports only, no barrel files
-- Typed custom errors, never throw raw strings
+- Typed custom errors (GspendError base class), never throw raw strings
 - Pure functions preferred
 - Biome for formatting and linting (no ESLint/Prettier)
 
 ## Commands
 - `npm install` – Install dependencies
 - `npm run build` – Build TypeScript
+- `npm run dev -- <command>` – Run CLI in development (via tsx)
 - `npm run lint` – Biome lint
 - `npm run format` – Biome format
+- `npm run check` – Biome check (lint + format)
 - `npm run typecheck` – TypeScript type checking
 - `npm run test` – Run tests (Vitest)
 
@@ -57,7 +71,8 @@ Single-package CLI tool:
 - Never hardcode API keys, project IDs, or credentials
 - All credential handling via ADC (Application Default Credentials)
 - Cost data stays 100% local — no telemetry, no cloud uploads
-- Config stored in `~/.config/gspend/`
+- Config stored in `~/.config/gspend/`, database in `~/Library/Application Support/gspend/` (macOS)
+- All BigQuery queries use parameterized inputs (no SQL injection)
 
 ## Documentation Rules
 - CLAUDE.md is the single source of truth for AI context
