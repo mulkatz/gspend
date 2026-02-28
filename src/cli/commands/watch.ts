@@ -42,7 +42,7 @@ export const watchCommand = new Command('watch')
 		let running = true;
 		let timer: ReturnType<typeof setTimeout> | null = null;
 
-		process.on('SIGINT', () => {
+		process.once('SIGINT', () => {
 			running = false;
 			if (timer) clearTimeout(timer);
 			console.log(chalk.dim('\nStopped.'));

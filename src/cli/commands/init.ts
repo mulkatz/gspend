@@ -79,6 +79,9 @@ export const initCommand = new Command('init')
 			billingSpinner.stop(chalk.red('Failed to discover billing accounts'));
 			const msg = error instanceof GspendError ? (error.hint ?? error.message) : String(error);
 			p.log.error(msg);
+			p.outro(chalk.red('Fix permissions and try again.'));
+			process.exitCode = 1;
+			return;
 		}
 
 		// Step 3: Discover projects
@@ -234,25 +237,27 @@ export const initCommand = new Command('init')
 			console.log(chalk.bold('gspend init') + chalk.dim(' \u2014 Billing Export Setup\n'));
 			console.log(renderTable());
 
-			for (let i = 0; i < 60; i++) {
-				const allDone = [...exportStatus.values()].every((v) => v !== null);
-				if (allDone || enterPressed) break;
+			try {
+				for (let i = 0; i < 60; i++) {
+					const allDone = [...exportStatus.values()].every((v) => v !== null);
+					if (allDone || enterPressed) break;
 
-				await Promise.race([
-					new Promise<void>((resolve) => setTimeout(resolve, 5000)),
-					enterPromise,
-				]);
+					await Promise.race([
+						new Promise<void>((resolve) => setTimeout(resolve, 5000)),
+						enterPromise,
+					]);
 
-				if (enterPressed) break;
+					if (enterPressed) break;
 
-				await pollExports();
+					await pollExports();
 
-				process.stdout.write('\x1B[2J\x1B[H');
-				console.log(chalk.bold('gspend init') + chalk.dim(' \u2014 Billing Export Setup\n'));
-				console.log(renderTable());
+					process.stdout.write('\x1B[2J\x1B[H');
+					console.log(chalk.bold('gspend init') + chalk.dim(' \u2014 Billing Export Setup\n'));
+					console.log(renderTable());
+				}
+			} finally {
+				rl.close();
 			}
-
-			rl.close();
 
 			for (const status of exportStatus.values()) {
 				if (status) {

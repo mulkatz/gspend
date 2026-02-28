@@ -12,7 +12,7 @@ const gcpIdentifier = z
 
 const BigQueryConfigSchema = z.object({
 	projectId: gcpIdentifier,
-	datasetId: gcpIdentifier,
+	datasetId: gcpIdentifier.optional(),
 	tableId: gcpIdentifier.optional(),
 });
 

@@ -14,9 +14,18 @@ import { upsertCostEntries } from '../store/history.js';
 import { forecastEndOfMonth } from './forecast.js';
 import { detectTrend, type TrendResult } from './trend.js';
 
-async function requireTableId(config: Config): Promise<string> {
+async function requireBigQueryConfig(
+	config: Config,
+): Promise<{ datasetId: string; table: string }> {
 	const { projectId, datasetId, tableId } = config.bigquery;
-	if (tableId) return tableId;
+	if (tableId && datasetId) return { datasetId, table: tableId };
+
+	if (!datasetId) {
+		throw new ConfigError(
+			'BigQuery dataset not configured.',
+			'Run: gspend init (ensure billing export is enabled in GCP Console first)',
+		);
+	}
 
 	// Lazy discovery: try to find the billing export table
 	try {
@@ -24,7 +33,7 @@ async function requireTableId(config: Config): Promise<string> {
 		if (found) {
 			config.bigquery.tableId = found;
 			saveConfig(config);
-			return found;
+			return { datasetId, table: found };
 		}
 	} catch {
 		// Discovery failed — fall through to error
@@ -62,8 +71,8 @@ export async function getCostStatus(
 	const cached = getCached<CostStatus>(cacheKey);
 	if (cached) return cached;
 
-	const { projectId, datasetId } = config.bigquery;
-	const table = await requireTableId(config);
+	const { projectId } = config.bigquery;
+	const { datasetId, table } = await requireBigQueryConfig(config);
 
 	const [monthlySummary, services, dailyCosts, freshness] = await Promise.all([
 		getCurrentMonthCosts(projectId, datasetId, table, filterProjectId, config.currency),
@@ -127,8 +136,8 @@ export async function getBreakdown(
 	const cached = getCached<BreakdownResult>(cacheKey);
 	if (cached) return cached;
 
-	const { projectId, datasetId } = config.bigquery;
-	const table = await requireTableId(config);
+	const { projectId } = config.bigquery;
+	const { datasetId, table } = await requireBigQueryConfig(config);
 
 	const currentMonth = month ?? new Date().toISOString().slice(0, 7);
 
@@ -170,8 +179,8 @@ export async function getHistory(
 	const cached = getCached<DailyCost[]>(cacheKey);
 	if (cached) return cached;
 
-	const { projectId, datasetId } = config.bigquery;
-	const table = await requireTableId(config);
+	const { projectId } = config.bigquery;
+	const { datasetId, table } = await requireBigQueryConfig(config);
 
 	const costs = await bqGetDailyCosts(
 		projectId,

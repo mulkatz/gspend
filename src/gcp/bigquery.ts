@@ -192,7 +192,7 @@ export async function getCostsByService(
 		if (!/^\d{4}-\d{2}$/.test(month)) {
 			throw new BigQueryError('Month must be in YYYY-MM format (e.g., 2026-02)');
 		}
-		params.month = month.replace('-', '');
+		params.month = month.replaceAll('-', '');
 	}
 	if (filterProjectId) params.filterProject = filterProjectId;
 
@@ -255,7 +255,7 @@ export async function getCostsBySku(
 		if (!/^\d{4}-\d{2}$/.test(month)) {
 			throw new BigQueryError('Month must be in YYYY-MM format (e.g., 2026-02)');
 		}
-		params.month = month.replace('-', '');
+		params.month = month.replaceAll('-', '');
 	}
 	if (service) params.service = service;
 	if (filterProjectId) params.filterProject = filterProjectId;
