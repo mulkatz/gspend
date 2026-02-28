@@ -24,8 +24,12 @@ jobs:
 
       - run: npm ci
 
+      - uses: biomejs/setup-biome@v2
+        with:
+          version: latest
+
       - name: Biome check
-        run: npm run check
+        run: biome check .
 
       - name: TypeScript typecheck
         run: npm run typecheck
