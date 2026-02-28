@@ -1,6 +1,6 @@
 import { Box, useApp, useInput } from 'ink';
 import type { ReactNode } from 'react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type { Config } from '../config.js';
 import { Header } from './components/Header.js';
 import { HelpBar } from './components/HelpBar.js';
@@ -38,7 +38,7 @@ export function App({ config, initialProject, refreshInterval }: AppProps): Reac
 
 	const { countdown, refresh } = useAutoRefresh(refreshInterval, handleRefresh);
 
-	const [projectCycleIndex, setProjectCycleIndex] = useState(-1);
+	const projectCycleIndexRef = useRef(-1);
 	const projectOptions = [undefined, ...config.projects.map((p) => p.projectId)];
 
 	useInput((input, key) => {
@@ -65,8 +65,8 @@ export function App({ config, initialProject, refreshInterval }: AppProps): Reac
 		if (input === 'q') exit();
 		if (input === 'r') refresh();
 		if (input === 'p') {
-			const nextIdx = (projectCycleIndex + 1) % projectOptions.length;
-			setProjectCycleIndex(nextIdx);
+			const nextIdx = (projectCycleIndexRef.current + 1) % projectOptions.length;
+			projectCycleIndexRef.current = nextIdx;
 			setFilterProject(projectOptions[nextIdx]);
 		}
 	});
@@ -100,7 +100,7 @@ export function App({ config, initialProject, refreshInterval }: AppProps): Reac
 				{activeTab === 'history' && <HistoryView {...viewProps} key={refreshKey} />}
 				{activeTab === 'budget' && <BudgetView {...viewProps} key={refreshKey} />}
 			</Box>
-			<HelpBar countdown={countdown} />
+			<HelpBar countdown={countdown} activeTab={activeTab} />
 		</Box>
 	);
 }

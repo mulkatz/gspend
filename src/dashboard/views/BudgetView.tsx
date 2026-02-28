@@ -33,6 +33,16 @@ export function BudgetView({ config, filterProjectId }: BudgetViewProps): ReactN
 		);
 	}
 
+	if (budgets.size === 0) {
+		return (
+			<Box flexDirection="column" gap={1}>
+				<Text bold>Budget Status</Text>
+				<Text dimColor>Select a specific project (press p) to see budget gauges.</Text>
+				<Text dimColor>Budget comparison requires single-project view for accuracy.</Text>
+			</Box>
+		);
+	}
+
 	return (
 		<Box flexDirection="column" gap={1}>
 			<Text bold>Budget Status</Text>

@@ -1,6 +1,6 @@
 import { Box, Text, useInput } from 'ink';
 import type { ReactNode } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Config } from '../../config.js';
 import type { ServiceBreakdown, SkuBreakdown } from '../../gcp/bigquery.js';
 import { ErrorView } from '../components/ErrorView.js';
@@ -31,6 +31,12 @@ export function BreakdownView({ config, filterProjectId }: BreakdownViewProps): 
 		selectedService,
 		undefined,
 	);
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: filterProjectId is a prop — reset selection when project changes
+	useEffect(() => {
+		setSelectedIndex(0);
+		setSelectedService(undefined);
+	}, [filterProjectId]);
 
 	useInput((_input, key) => {
 		if (!result) return;
