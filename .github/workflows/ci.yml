@@ -22,7 +22,7 @@ jobs:
           node-version: 22
           cache: npm
 
-      - run: npm install
+      - run: npm ci
 
       - uses: biomejs/setup-biome@v2
         with:
