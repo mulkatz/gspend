@@ -14,7 +14,8 @@ way to get actual spending data programmatically (see ADR-002).
 - Node.js 22+ runtime, ESM (`"type": "module"`, `"module": "Node16"`)
 - Biome v2 for linting and formatting (tabs, single quotes, 100 line width)
 - Commander.js for CLI framework
-- chalk, cli-table3, ora, @clack/prompts for terminal UI
+- chalk, cli-table3, ora, @clack/prompts for static terminal UI
+- Ink v6 + React 19 for interactive dashboard (see ADR-006), dynamically imported
 - GCP APIs: `@google-cloud/bigquery` (cost data), `@google-cloud/billing` (account discovery),
   `@google-cloud/billing-budgets`, `@google-cloud/resource-manager`, `google-auth-library`
 - SQLite (better-sqlite3) for local caching and history
@@ -25,11 +26,12 @@ way to get actual spending data programmatically (see ADR-002).
 ## Project Structure
 Single-package CLI tool:
 - `src/cli/index.ts` – Entry point, Commander setup, all commands registered
-- `src/cli/commands/` – Command implementations (init, status, breakdown, history, budget, watch)
+- `src/cli/commands/` – Command implementations (init, status, breakdown, history, budget, watch, dashboard)
 - `src/gcp/` – GCP API wrappers (auth, projects, bigquery, budgets)
 - `src/tracker/` – Business logic (costs, budget, forecast, trend)
 - `src/store/` – SQLite database (db, migrations, cache, history)
 - `src/ui/` – Terminal output formatting (colors, table, chart, freshness)
+- `src/dashboard/` – Interactive Ink dashboard (App, components, views, hooks)
 - `src/config.ts` – Zod config schema, read/write
 - `src/paths.ts` – XDG config/data paths via env-paths
 - `src/errors.ts` – Typed error classes
@@ -39,6 +41,8 @@ Single-package CLI tool:
 - All code, comments, and documentation in English
 - Strict TypeScript: no `any`, explicit return types
 - ESM with `.js` extensions on all imports
+- Dashboard uses `.tsx` files with `jsx: "react-jsx"` (auto-transform, no `import React`)
+- Dashboard components return `ReactNode`, not `JSX.Element` (for `exactOptionalPropertyTypes`)
 - Zod for runtime validation of API responses and config
 - Named exports only, no barrel files
 - Typed custom errors (GspendError base class), never throw raw strings
