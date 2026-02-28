@@ -4,6 +4,7 @@ import ora from 'ora';
 import { loadConfig } from '../../config.js';
 import { GspendError } from '../../errors.js';
 import { getBreakdown } from '../../tracker/costs.js';
+import { projectScope } from '../../ui/colors.js';
 import { breakdownTable } from '../../ui/table.js';
 
 export const breakdownCommand = new Command('breakdown')
@@ -31,8 +32,9 @@ export const breakdownCommand = new Command('breakdown')
 
 			const title = service ? `Cost Breakdown: ${service}` : 'Cost Breakdown by Service';
 			const period = result.month;
+			const scope = projectScope(filterProject, config.projects.length);
 
-			console.log(`\n${chalk.bold(title)} ${chalk.dim(`(${period})`)}\n`);
+			console.log(`\n${chalk.bold(title)} ${scope} ${chalk.dim(`(${period})`)}\n`);
 			console.log(breakdownTable(result.items));
 		} catch (error) {
 			spinner.stop();

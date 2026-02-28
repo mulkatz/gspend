@@ -29,6 +29,11 @@ export function percentStr(value: number): string {
 	return `${value.toFixed(1)}%`;
 }
 
+export function projectScope(filterProjectId: string | undefined, totalProjects: number): string {
+	if (filterProjectId) return chalk.dim(`(project: ${filterProjectId})`);
+	return chalk.dim(`(${totalProjects} project${totalProjects === 1 ? '' : 's'})`);
+}
+
 export const dim = chalk.dim;
 export const bold = chalk.bold;
 export const green = chalk.green;

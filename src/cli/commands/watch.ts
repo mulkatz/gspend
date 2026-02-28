@@ -6,6 +6,7 @@ import { clearCache } from '../../store/cache.js';
 import { closeDb } from '../../store/db.js';
 import { getBudgetStatus } from '../../tracker/budget.js';
 import { getCostStatus } from '../../tracker/costs.js';
+import { projectScope } from '../../ui/colors.js';
 import { freshnessFooter } from '../../ui/freshness.js';
 import { statusTable } from '../../ui/table.js';
 
@@ -62,8 +63,9 @@ export const watchCommand = new Command('watch')
 
 				const budget = project ? getBudgetStatus(project, status.netMonth) : null;
 
+				const scope = projectScope(filterProject, config.projects.length);
 				console.log(
-					`${chalk.bold('gspend watch')} ${chalk.dim(`(refreshing every ${interval / 1000}s)`)}\n`,
+					`${chalk.bold('gspend watch')} ${scope} ${chalk.dim(`(refreshing every ${interval / 1000}s)`)}\n`,
 				);
 				console.log(statusTable(status, budget));
 				console.log(freshnessFooter(new Date(status.dataFreshness)));

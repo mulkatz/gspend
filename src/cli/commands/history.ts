@@ -5,7 +5,7 @@ import { loadConfig } from '../../config.js';
 import { GspendError } from '../../errors.js';
 import { getHistory } from '../../tracker/costs.js';
 import { barChart } from '../../ui/chart.js';
-import { currency as formatCurrency } from '../../ui/colors.js';
+import { currency as formatCurrency, projectScope } from '../../ui/colors.js';
 
 export const historyCommand = new Command('history')
 	.description('Show daily cost history as a bar chart')
@@ -35,7 +35,8 @@ export const historyCommand = new Command('history')
 				return;
 			}
 
-			console.log(`\n${chalk.bold('Daily Costs')} ${chalk.dim(`(last ${days} days)`)}\n`);
+			const scope = projectScope(filterProject, config.projects.length);
+			console.log(`\n${chalk.bold('Daily Costs')} ${scope} ${chalk.dim(`(last ${days} days)`)}\n`);
 
 			if (dailyCosts.length === 0) {
 				console.log(chalk.dim('  No cost data available.'));

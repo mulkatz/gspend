@@ -5,6 +5,7 @@ import { loadConfig } from '../../config.js';
 import { GspendError } from '../../errors.js';
 import { getBudgetStatus } from '../../tracker/budget.js';
 import { getCostStatus } from '../../tracker/costs.js';
+import { projectScope } from '../../ui/colors.js';
 import { freshnessFooter } from '../../ui/freshness.js';
 import { statusTable } from '../../ui/table.js';
 
@@ -34,7 +35,8 @@ export const statusCommand = new Command('status')
 
 			const budget = project ? getBudgetStatus(project, status.netMonth) : null;
 
-			console.log(`\n${chalk.bold('GCP Spending Overview')}\n`);
+			const scope = projectScope(filterProject, config.projects.length);
+			console.log(`\n${chalk.bold('GCP Spending Overview')} ${scope}\n`);
 			console.log(statusTable(status, budget));
 			console.log(freshnessFooter(new Date(status.dataFreshness)));
 		} catch (error) {
