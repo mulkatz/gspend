@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
+import { breakdownCommand } from './commands/breakdown.js';
+import { budgetCommand } from './commands/budget.js';
+import { historyCommand } from './commands/history.js';
 import { initCommand } from './commands/init.js';
 import { statusCommand } from './commands/status.js';
 
@@ -15,5 +18,8 @@ program
 
 program.addCommand(initCommand);
 program.addCommand(statusCommand, { isDefault: true });
+program.addCommand(breakdownCommand);
+program.addCommand(historyCommand);
+program.addCommand(budgetCommand);
 
 program.parse();
