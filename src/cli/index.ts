@@ -6,6 +6,7 @@ import { budgetCommand } from './commands/budget.js';
 import { historyCommand } from './commands/history.js';
 import { initCommand } from './commands/init.js';
 import { statusCommand } from './commands/status.js';
+import { watchCommand } from './commands/watch.js';
 
 const program = new Command();
 
@@ -21,5 +22,6 @@ program.addCommand(statusCommand, { isDefault: true });
 program.addCommand(breakdownCommand);
 program.addCommand(historyCommand);
 program.addCommand(budgetCommand);
+program.addCommand(watchCommand);
 
 program.parse();
