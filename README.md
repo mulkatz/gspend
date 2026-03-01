@@ -1,9 +1,7 @@
 # gspend
 
 [![CI](https://github.com/mulkatz/gspend/actions/workflows/ci.yml/badge.svg)](https://github.com/mulkatz/gspend/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/gspend)](https://www.npmjs.com/package/gspend)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node](https://img.shields.io/node/v/gspend)](https://nodejs.org)
 
 See what you've actually spent on GCP — right in your terminal.
 
@@ -23,21 +21,11 @@ Unlike cost estimators that calculate hypothetical costs from YAML files, gspend
 
 ## Installation
 
-### Homebrew (macOS/Linux — recommended)
-
 ```bash
 brew install mulkatz/tap/gspend
 ```
 
 No Node.js required — installs a standalone binary.
-
-### npm
-
-```bash
-npm install -g gspend
-```
-
-Requires Node.js 22+.
 
 ## Quick Start
 
