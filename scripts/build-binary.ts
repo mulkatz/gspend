@@ -42,7 +42,14 @@ if (!result.success) {
 	process.exit(1);
 }
 
-console.log('Bundle created: dist/index.js');
+// Verify version was injected into the bundle
+const bundle = await Bun.file('dist/index.js').text();
+if (!bundle.includes(JSON.stringify(pkgJson.version))) {
+	console.error(`Version ${pkgJson.version} not found in bundle — define injection failed`);
+	process.exit(1);
+}
+
+console.log(`Bundle created: dist/index.js (v${pkgJson.version})`);
 
 // Step 2: Compile the bundle to a standalone binary
 const compileArgs = ['bun', 'build', 'dist/index.js', '--compile', '--outfile', 'dist/gspend'];
