@@ -18,7 +18,7 @@ way to get actual spending data programmatically (see ADR-002).
 - Ink v6 + React 19 for interactive dashboard (see ADR-006), dynamically imported
 - GCP APIs: `@google-cloud/bigquery` (cost data), `@google-cloud/billing` (account discovery),
   `@google-cloud/billing-budgets`, `@google-cloud/resource-manager`, `google-auth-library`
-- SQLite (better-sqlite3) for local caching and history
+- SQLite: `better-sqlite3` (Node.js) / `bun:sqlite` (standalone binary), behind abstraction layer (see ADR-007)
 - Zod for config validation
 - env-paths for XDG-compliant config/data paths
 - Vitest for testing
@@ -29,7 +29,9 @@ Single-package CLI tool:
 - `src/cli/commands/` – Command implementations (init, status, breakdown, history, budget, watch, dashboard)
 - `src/gcp/` – GCP API wrappers (auth, projects, bigquery, budgets)
 - `src/tracker/` – Business logic (costs, budget, forecast, trend)
-- `src/store/` – SQLite database (db, migrations, cache, history)
+- `src/store/` – SQLite database (db, migrations, cache, history, sqlite-interface, sqlite-node, sqlite-bun)
+- `src/types/` – Ambient type declarations (bun-sqlite.d.ts)
+- `scripts/` – Build scripts (build-binary.ts for standalone binary)
 - `src/ui/` – Terminal output formatting (colors, table, chart, freshness)
 - `src/dashboard/` – Interactive Ink dashboard (App, components, views, hooks)
 - `src/config.ts` – Zod config schema, read/write
@@ -58,6 +60,7 @@ Single-package CLI tool:
 - `npm run check` – Biome check (lint + format)
 - `npm run typecheck` – TypeScript type checking
 - `npm run test` – Run tests (Vitest)
+- `npm run build:binary` – Build standalone binary via Bun (requires Bun installed)
 
 ## Testing
 - Vitest as test runner

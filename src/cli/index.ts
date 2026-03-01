@@ -5,6 +5,7 @@ import chalk from 'chalk';
 import { Command } from 'commander';
 import { loadConfig } from '../config.js';
 import { GspendError } from '../errors.js';
+import { initDb } from '../store/db.js';
 import { getBudgetStatus } from '../tracker/budget.js';
 import { getCostStatus } from '../tracker/costs.js';
 import { projectScope } from '../ui/colors.js';
@@ -18,17 +19,26 @@ import { initCommand } from './commands/init.js';
 import { statusCommand } from './commands/status.js';
 import { watchCommand } from './commands/watch.js';
 
-const require = createRequire(import.meta.url);
-const pkg = require('../../package.json') as { version: string };
+// Version is injected by Bun at bundle time (__GSPEND_VERSION__),
+// falling back to package.json for Node.js development
+declare const __GSPEND_VERSION__: string | undefined;
+const version =
+	typeof __GSPEND_VERSION__ !== 'undefined'
+		? __GSPEND_VERSION__
+		: (createRequire(import.meta.url)('../../package.json') as { version: string }).version;
 
 const program = new Command();
 
 program
 	.name('gspend')
 	.description("See what you've actually spent on GCP")
-	.version(pkg.version)
+	.version(version)
 	.option('--project <id>', 'Filter to a specific GCP project')
 	.option('--json', 'Output as JSON');
+
+program.hook('preAction', async () => {
+	await initDb();
+});
 
 program.addCommand(initCommand);
 program.addCommand(statusCommand);

@@ -1,6 +1,6 @@
-import type Database from 'better-sqlite3';
+import type { SqliteDatabase } from './sqlite-interface.js';
 
-type Migration = (db: Database.Database) => void;
+type Migration = (db: SqliteDatabase) => void;
 
 const migrations: Migration[] = [
 	// Migration 1: Initial schema
@@ -36,7 +36,7 @@ const migrations: Migration[] = [
 	},
 ];
 
-export function runMigrations(db: Database.Database): void {
+export function runMigrations(db: SqliteDatabase): void {
 	const currentVersion = db.pragma('user_version', { simple: true }) as number;
 
 	if (currentVersion >= migrations.length) return;

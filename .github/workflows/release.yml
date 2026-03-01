@@ -6,7 +6,7 @@ on:
       - 'v*'
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
 
 jobs:
@@ -45,3 +45,154 @@ jobs:
         run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  build-binary:
+    name: Build ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - platform: darwin-arm64
+            runner: macos-14
+            target: bun-darwin-arm64
+          - platform: darwin-x64
+            runner: macos-13
+            target: bun-darwin-x64
+          - platform: linux-x64
+            runner: ubuntu-latest
+            target: bun-linux-x64
+          - platform: linux-arm64
+            runner: ubuntu-latest
+            target: bun-linux-arm64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install
+
+      - name: Build binary
+        run: bun run scripts/build-binary.ts ${{ matrix.target }}
+
+      - name: Package binary
+        run: tar -czf gspend-${{ matrix.platform }}.tar.gz -C dist gspend
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gspend-${{ matrix.platform }}
+          path: gspend-${{ matrix.platform }}.tar.gz
+
+  release:
+    name: Create GitHub Release
+    needs: build-binary
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Compute SHA256 checksums
+        run: |
+          cd artifacts
+          sha256sum gspend-*.tar.gz > checksums.txt
+          cat checksums.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/gspend-*.tar.gz
+            artifacts/checksums.txt
+
+  update-homebrew:
+    name: Update Homebrew formula
+    needs: release
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Compute SHA256 checksums
+        id: sha
+        run: |
+          cd artifacts
+          echo "darwin_arm64=$(sha256sum gspend-darwin-arm64.tar.gz | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "darwin_x64=$(sha256sum gspend-darwin-x64.tar.gz | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "linux_x64=$(sha256sum gspend-linux-x64.tar.gz | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "linux_arm64=$(sha256sum gspend-linux-arm64.tar.gz | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Extract version
+        id: version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          repository: mulkatz/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+
+      - name: Update formula
+        env:
+          FORMULA_VERSION: ${{ steps.version.outputs.version }}
+          SHA_DARWIN_ARM64: ${{ steps.sha.outputs.darwin_arm64 }}
+          SHA_DARWIN_X64: ${{ steps.sha.outputs.darwin_x64 }}
+          SHA_LINUX_X64: ${{ steps.sha.outputs.linux_x64 }}
+          SHA_LINUX_ARM64: ${{ steps.sha.outputs.linux_arm64 }}
+        run: |
+          cat > homebrew-tap/Formula/gspend.rb << FORMULA
+          class Gspend < Formula
+            desc "Track real Google Cloud Platform spending from BigQuery billing export"
+            homepage "https://github.com/mulkatz/gspend"
+            version "${FORMULA_VERSION}"
+            license "MIT"
+
+            on_macos do
+              if Hardware::CPU.arm?
+                url "https://github.com/mulkatz/gspend/releases/download/v#{version}/gspend-darwin-arm64.tar.gz"
+                sha256 "${SHA_DARWIN_ARM64}"
+              else
+                url "https://github.com/mulkatz/gspend/releases/download/v#{version}/gspend-darwin-x64.tar.gz"
+                sha256 "${SHA_DARWIN_X64}"
+              end
+            end
+
+            on_linux do
+              if Hardware::CPU.arm?
+                url "https://github.com/mulkatz/gspend/releases/download/v#{version}/gspend-linux-arm64.tar.gz"
+                sha256 "${SHA_LINUX_ARM64}"
+              else
+                url "https://github.com/mulkatz/gspend/releases/download/v#{version}/gspend-linux-x64.tar.gz"
+                sha256 "${SHA_LINUX_X64}"
+              end
+            end
+
+            def install
+              bin.install "gspend"
+            end
+
+            test do
+              assert_match version.to_s, shell_output("#{bin}/gspend --version")
+            end
+          end
+          FORMULA
+
+      - name: Commit and push formula
+        run: |
+          cd homebrew-tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/gspend.rb
+          git commit -m "Update gspend to ${GITHUB_REF_NAME#v}"
+          git push

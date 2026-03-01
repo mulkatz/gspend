@@ -21,6 +21,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "build:binary": "bun run scripts/build-binary.ts",
     "prepublishOnly": "npm run typecheck && npm run test && npm run build"
   },
   "keywords": [

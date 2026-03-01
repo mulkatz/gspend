@@ -11,7 +11,6 @@ Unlike cost estimators that calculate hypothetical costs from YAML files, gspend
 
 ## Prerequisites
 
-- Node.js 22+
 - GCP Application Default Credentials (`gcloud auth application-default login`)
 - [BigQuery billing export](https://cloud.google.com/billing/docs/how-to/export-data-bigquery) enabled (gspend will guide you through setup)
 
@@ -24,9 +23,21 @@ Unlike cost estimators that calculate hypothetical costs from YAML files, gspend
 
 ## Installation
 
+### Homebrew (macOS/Linux — recommended)
+
+```bash
+brew install mulkatz/tap/gspend
+```
+
+No Node.js required — installs a standalone binary.
+
+### npm
+
 ```bash
 npm install -g gspend
 ```
+
+Requires Node.js 22+.
 
 ## Quick Start
 
