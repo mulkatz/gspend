@@ -20,33 +20,47 @@ export async function discoverProjects(): Promise<ProjectWithBilling[]> {
 		const projectsClient = new ProjectsClient();
 		const billingClient = new CloudBillingClient();
 
-		const projects: ProjectWithBilling[] = [];
-
+		// Phase 1: Collect all active projects (async iterator, no billing calls yet)
+		const rawProjects: Array<{ projectId: string; displayName: string }> = [];
 		const iterable = projectsClient.searchProjectsAsync({});
 		for await (const project of iterable) {
 			if (!project.projectId || project.state !== 'ACTIVE') continue;
-
-			let billingAccountId: string | null = null;
-			let billingEnabled = false;
-
-			try {
-				const [billingInfo] = await billingClient.getProjectBillingInfo({
-					name: `projects/${project.projectId}`,
-				});
-				billingEnabled = billingInfo.billingEnabled ?? false;
-				billingAccountId = billingInfo.billingAccountName
-					? billingInfo.billingAccountName.replace('billingAccounts/', '')
-					: null;
-			} catch {
-				// No billing access for this project — skip billing info
-			}
-
-			projects.push({
+			rawProjects.push({
 				projectId: project.projectId,
 				displayName: project.displayName ?? project.projectId,
-				billingAccountId,
-				billingEnabled,
 			});
+		}
+
+		// Phase 2: Fetch billing info in parallel (batched, concurrency 10)
+		const BATCH_SIZE = 10;
+		const projects: ProjectWithBilling[] = [];
+
+		for (let i = 0; i < rawProjects.length; i += BATCH_SIZE) {
+			const batch = rawProjects.slice(i, i + BATCH_SIZE);
+			const results = await Promise.allSettled(
+				batch.map(async (p) => {
+					try {
+						const [billingInfo] = await billingClient.getProjectBillingInfo({
+							name: `projects/${p.projectId}`,
+						});
+						return {
+							...p,
+							billingEnabled: billingInfo.billingEnabled ?? false,
+							billingAccountId: billingInfo.billingAccountName
+								? billingInfo.billingAccountName.replace('billingAccounts/', '')
+								: null,
+						};
+					} catch {
+						return { ...p, billingEnabled: false, billingAccountId: null };
+					}
+				}),
+			);
+
+			for (const result of results) {
+				if (result.status === 'fulfilled') {
+					projects.push(result.value);
+				}
+			}
 		}
 
 		return projects;
