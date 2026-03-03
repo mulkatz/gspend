@@ -16,6 +16,13 @@ const BigQueryConfigSchema = z.object({
 	tableId: gcpIdentifier.optional(),
 });
 
+const BillingExportConfigSchema = z.object({
+	projectId: gcpIdentifier,
+	datasetId: gcpIdentifier.optional(),
+	tableId: gcpIdentifier.optional(),
+	currency: z.string().optional(),
+});
+
 const ProjectConfigSchema = z.object({
 	projectId: z.string(),
 	displayName: z.string().optional(),
@@ -27,6 +34,7 @@ const ProjectConfigSchema = z.object({
 export const ConfigSchema = z.object({
 	projects: z.array(ProjectConfigSchema).min(1),
 	bigquery: BigQueryConfigSchema,
+	billingExports: z.record(z.string(), BillingExportConfigSchema).optional(),
 	currency: z.string().default('USD'),
 	pollInterval: z.number().positive().default(300),
 });
@@ -34,6 +42,7 @@ export const ConfigSchema = z.object({
 export type Config = z.infer<typeof ConfigSchema>;
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
 export type BigQueryConfig = z.infer<typeof BigQueryConfigSchema>;
+export type BillingExportConfig = z.infer<typeof BillingExportConfigSchema>;
 
 export function loadConfig(): Config {
 	const configPath = getConfigPath();
@@ -84,6 +93,19 @@ export function addProjectToConfig(
 				billingAccountId: project.billingAccountId,
 			},
 		],
+	};
+	saveConfig(updated);
+	return updated;
+}
+
+export function setBillingExportConfig(
+	config: Config,
+	billingAccountId: string,
+	exportConfig: { projectId: string; datasetId?: string; tableId?: string; currency?: string },
+): Config {
+	const updated: Config = {
+		...config,
+		billingExports: { ...config.billingExports, [billingAccountId]: exportConfig },
 	};
 	saveConfig(updated);
 	return updated;

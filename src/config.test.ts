@@ -17,9 +17,14 @@ vi.mock('./paths.js', () => ({
 	},
 }));
 
-const { ConfigSchema, loadConfig, saveConfig, configExists, addProjectToConfig } = await import(
-	'./config.js'
-);
+const {
+	ConfigSchema,
+	loadConfig,
+	saveConfig,
+	configExists,
+	addProjectToConfig,
+	setBillingExportConfig,
+} = await import('./config.js');
 
 const validConfig: Config = {
 	projects: [{ projectId: 'my-project' }],
@@ -59,6 +64,27 @@ describe('ConfigSchema', () => {
 		if (result.success) {
 			expect(result.data.currency).toBe('USD');
 			expect(result.data.pollInterval).toBe(300);
+		}
+	});
+
+	it('validates config with billingExports', () => {
+		const result = ConfigSchema.safeParse({
+			...validConfig,
+			billingExports: {
+				'BILLING-123': { projectId: 'other-proj', datasetId: 'billing_ds', currency: 'EUR' },
+			},
+		});
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.billingExports?.['BILLING-123']?.currency).toBe('EUR');
+		}
+	});
+
+	it('validates config without billingExports (backward compatible)', () => {
+		const result = ConfigSchema.safeParse(validConfig);
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.billingExports).toBeUndefined();
 		}
 	});
 });
@@ -166,5 +192,68 @@ describe('addProjectToConfig', () => {
 	it('handles optional fields', () => {
 		const updated = addProjectToConfig(validConfig, { projectId: 'minimal' });
 		expect(updated.projects[1]).toEqual({ projectId: 'minimal' });
+	});
+});
+
+describe('setBillingExportConfig', () => {
+	let tempBase: string;
+
+	beforeEach(() => {
+		tempBase = mkdtempSync(join(tmpdir(), 'gspend-config-test-'));
+		testDir.config = join(tempBase, 'config');
+		testDir.data = join(tempBase, 'data');
+		const { mkdirSync } = require('node:fs');
+		mkdirSync(testDir.config, { recursive: true });
+	});
+
+	afterEach(() => {
+		rmSync(tempBase, { recursive: true, force: true });
+	});
+
+	it('adds a billing export entry and returns updated config', () => {
+		const updated = setBillingExportConfig(validConfig, 'BILLING-123', {
+			projectId: 'other-proj',
+			datasetId: 'billing_ds',
+			currency: 'EUR',
+		});
+		expect(updated.billingExports?.['BILLING-123']).toEqual({
+			projectId: 'other-proj',
+			datasetId: 'billing_ds',
+			currency: 'EUR',
+		});
+	});
+
+	it('preserves existing billing export entries', () => {
+		const withExisting: Config = {
+			...validConfig,
+			billingExports: { 'EXISTING-111': { projectId: 'proj-a' } },
+		};
+		const updated = setBillingExportConfig(withExisting, 'NEW-222', {
+			projectId: 'proj-b',
+			datasetId: 'ds',
+		});
+		expect(updated.billingExports?.['EXISTING-111']).toEqual({ projectId: 'proj-a' });
+		expect(updated.billingExports?.['NEW-222']).toEqual({ projectId: 'proj-b', datasetId: 'ds' });
+	});
+
+	it('persists to disk', () => {
+		setBillingExportConfig(validConfig, 'BILLING-456', { projectId: 'persisted-proj' });
+		const loaded = loadConfig();
+		expect(loaded.billingExports?.['BILLING-456']?.projectId).toBe('persisted-proj');
+	});
+
+	it('updates existing entry for same billing account', () => {
+		const withExisting: Config = {
+			...validConfig,
+			billingExports: { 'BILLING-123': { projectId: 'old-proj' } },
+		};
+		const updated = setBillingExportConfig(withExisting, 'BILLING-123', {
+			projectId: 'new-proj',
+			datasetId: 'new-ds',
+		});
+		expect(updated.billingExports?.['BILLING-123']).toEqual({
+			projectId: 'new-proj',
+			datasetId: 'new-ds',
+		});
 	});
 });

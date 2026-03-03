@@ -2,7 +2,7 @@ import { Box, Text, useInput } from 'ink';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Config } from '../../config.js';
-import { addProjectToConfig } from '../../config.js';
+import { addProjectToConfig, setBillingExportConfig } from '../../config.js';
 import { ensureDatasetExists } from '../../gcp/bigquery.js';
 import { openInBrowser } from '../../gcp/browser.js';
 import { ErrorView } from '../components/ErrorView.js';
@@ -19,6 +19,7 @@ export function ProjectsView({ config, onConfigChange }: ProjectsViewProps): Rea
 	const [refreshTrigger, setRefreshTrigger] = useState(0);
 	const [selectedIndex, setSelectedIndex] = useState(0);
 	const [statusMessage, setStatusMessage] = useState<string | null>(null);
+	const [pendingAction, setPendingAction] = useState<ProjectInfo | null>(null);
 
 	const { projects, trackedCount, untrackedCount, otherAccountCount, loading, error } =
 		useProjectsData(config, refreshTrigger);
@@ -54,17 +55,31 @@ export function ProjectsView({ config, onConfigChange }: ProjectsViewProps): Rea
 		(project: ProjectInfo) => {
 			if (!project.billingAccountId) return;
 
-			const bqProject = config.bigquery.projectId;
+			const billingAccountId = project.billingAccountId;
+			const bqProject = project.projectId;
 			const datasetId = config.bigquery.datasetId ?? 'billing_export';
 
 			setStatusMessage('Creating dataset...');
 
 			void ensureDatasetExists(bqProject, datasetId).then(
 				() => {
-					const url = `https://console.cloud.google.com/billing/${project.billingAccountId}/export`;
+					const url = `https://console.cloud.google.com/billing/${billingAccountId}/export/bigquery/edit?project=${bqProject}`;
 					openInBrowser(url);
+					// Add project + register billing export in one flow
+					const addPayload: { projectId: string; displayName?: string; billingAccountId?: string } =
+						{
+							projectId: project.projectId,
+						};
+					if (project.displayName) addPayload.displayName = project.displayName;
+					addPayload.billingAccountId = billingAccountId;
+					let updated = addProjectToConfig(config, addPayload);
+					updated = setBillingExportConfig(updated, billingAccountId, {
+						projectId: bqProject,
+						datasetId,
+					});
+					onConfigChange(updated);
 					setStatusMessage(
-						`Dataset "${datasetId}" ready in project "${bqProject}". Select it on the export page, then press r.`,
+						`Added ${project.projectId}. Configure billing export in the browser, then press r.`,
 					);
 				},
 				(err: unknown) => {
@@ -73,7 +88,7 @@ export function ProjectsView({ config, onConfigChange }: ProjectsViewProps): Rea
 				},
 			);
 		},
-		[config],
+		[config, onConfigChange],
 	);
 
 	useInput((input, key) => {
@@ -81,6 +96,7 @@ export function ProjectsView({ config, onConfigChange }: ProjectsViewProps): Rea
 			setRefreshTrigger((n) => n + 1);
 			setSelectedIndex(0);
 			setStatusMessage(null);
+			setPendingAction(null);
 			return;
 		}
 
@@ -88,15 +104,29 @@ export function ProjectsView({ config, onConfigChange }: ProjectsViewProps): Rea
 
 		if (key.downArrow) {
 			setSelectedIndex((prev) => Math.min(prev + 1, navigable.length - 1));
+			setPendingAction(null);
+			setStatusMessage(null);
 		} else if (key.upArrow) {
 			setSelectedIndex((prev) => Math.max(prev - 1, 0));
+			setPendingAction(null);
+			setStatusMessage(null);
 		} else if (key.return) {
 			const item = navigable[selectedIndex];
 			if (!item) return;
 			if (item.canTrack) {
 				handleAdd(item);
-			} else {
+				setPendingAction(null);
+			} else if (pendingAction?.projectId === item.projectId) {
+				// Second Enter — confirmed, execute
 				handleOpenBillingExport(item);
+				setPendingAction(null);
+			} else {
+				// First Enter — show confirmation
+				const datasetId = config.bigquery.datasetId ?? 'billing_export';
+				setPendingAction(item);
+				setStatusMessage(
+					`Press Enter to create dataset "${datasetId}" in "${item.projectId}" and open export page. \u2191\u2193 to cancel.`,
+				);
 			}
 		}
 	});

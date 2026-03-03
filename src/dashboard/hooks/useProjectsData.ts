@@ -40,6 +40,12 @@ export function categorizeProjects(
 			trackedBillingAccounts.add(p.billingAccountId);
 		}
 	}
+	// Include billing accounts that have a billingExports entry (export already configured)
+	if (config.billingExports) {
+		for (const accountId of Object.keys(config.billingExports)) {
+			trackedBillingAccounts.add(accountId);
+		}
+	}
 
 	return discovered
 		.filter((p) => p.billingEnabled)

@@ -88,4 +88,16 @@ describe('categorizeProjects', () => {
 		const result = categorizeProjects([], baseConfig);
 		expect(result).toEqual([]);
 	});
+
+	it('marks projects as canTrack when their billing account has a billingExports entry', () => {
+		const configWithExport: Config = {
+			...baseConfig,
+			billingExports: {
+				'222-BBB': { projectId: 'other-bq-proj', datasetId: 'billing_ds' },
+			},
+		};
+		const result = categorizeProjects(discovered, configWithExport);
+		const otherAccount = result.find((p) => p.projectId === 'other-account');
+		expect(otherAccount?.canTrack).toBe(true);
+	});
 });
