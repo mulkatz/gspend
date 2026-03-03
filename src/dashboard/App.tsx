@@ -8,6 +8,7 @@ import { useAutoRefresh } from './hooks/useAutoRefresh.js';
 import { BreakdownView } from './views/BreakdownView.js';
 import { BudgetView } from './views/BudgetView.js';
 import { HistoryView } from './views/HistoryView.js';
+import { ProjectsView } from './views/ProjectsView.js';
 import { StatusView } from './views/StatusView.js';
 
 const TABS = [
@@ -15,6 +16,7 @@ const TABS = [
 	{ label: 'Breakdown', key: 'breakdown' },
 	{ label: 'History', key: 'history' },
 	{ label: 'Budget', key: 'budget' },
+	{ label: 'Projects', key: 'projects' },
 ] as const;
 
 type TabKey = (typeof TABS)[number]['key'];
@@ -25,12 +27,17 @@ interface AppProps {
 	refreshInterval: number;
 }
 
-export function App({ config, initialProject, refreshInterval }: AppProps): ReactNode {
+export function App({
+	config: initialConfig,
+	initialProject,
+	refreshInterval,
+}: AppProps): ReactNode {
 	const { exit } = useApp();
 	const [activeTab, setActiveTab] = useState<TabKey>('status');
 	const [filterProject, setFilterProject] = useState(initialProject);
 	const [refreshKey, setRefreshKey] = useState(0);
 	const [dataFreshness, setDataFreshness] = useState<Date | null>(null);
+	const [currentConfig, setCurrentConfig] = useState(initialConfig);
 
 	const handleRefresh = useCallback(() => {
 		setRefreshKey((k) => k + 1);
@@ -39,7 +46,7 @@ export function App({ config, initialProject, refreshInterval }: AppProps): Reac
 	const { countdown, refresh } = useAutoRefresh(refreshInterval, handleRefresh);
 
 	const projectCycleIndexRef = useRef(-1);
-	const projectOptions = [undefined, ...config.projects.map((p) => p.projectId)];
+	const projectOptions = [undefined, ...currentConfig.projects.map((p) => p.projectId)];
 
 	useInput((input, key) => {
 		// Tab switching
@@ -47,6 +54,7 @@ export function App({ config, initialProject, refreshInterval }: AppProps): Reac
 		else if (input === '2') setActiveTab('breakdown');
 		else if (input === '3') setActiveTab('history');
 		else if (input === '4') setActiveTab('budget');
+		else if (input === '5') setActiveTab('projects');
 		else if (key.tab && !key.shift) {
 			setActiveTab((prev) => {
 				const idx = TABS.findIndex((t) => t.key === prev);
@@ -73,15 +81,21 @@ export function App({ config, initialProject, refreshInterval }: AppProps): Reac
 
 	const scopeLabel = filterProject
 		? `project: ${filterProject}`
-		: `All Projects (${config.projects.length})`;
+		: `All Projects (${currentConfig.projects.length})`;
 
 	const viewProps = useMemo(
-		() => ({ config, filterProjectId: filterProject }),
-		[config, filterProject],
+		() => ({ config: currentConfig, filterProjectId: filterProject }),
+		[currentConfig, filterProject],
 	);
 
 	const handleDataFreshness = useCallback((date: Date) => {
 		setDataFreshness(date);
+	}, []);
+
+	const handleConfigChange = useCallback((updated: Config) => {
+		setCurrentConfig(updated);
+		// Reset project cycle so new project is included
+		projectCycleIndexRef.current = -1;
 	}, []);
 
 	return (
@@ -99,6 +113,9 @@ export function App({ config, initialProject, refreshInterval }: AppProps): Reac
 				{activeTab === 'breakdown' && <BreakdownView {...viewProps} key={refreshKey} />}
 				{activeTab === 'history' && <HistoryView {...viewProps} key={refreshKey} />}
 				{activeTab === 'budget' && <BudgetView {...viewProps} key={refreshKey} />}
+				{activeTab === 'projects' && (
+					<ProjectsView config={currentConfig} onConfigChange={handleConfigChange} />
+				)}
 			</Box>
 			<HelpBar countdown={countdown} activeTab={activeTab} />
 		</Box>

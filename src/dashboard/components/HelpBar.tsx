@@ -7,10 +7,12 @@ interface HelpBarProps {
 }
 
 export function HelpBar({ countdown, activeTab }: HelpBarProps): ReactNode {
-	const parts = ['1-4: tabs'];
+	const parts = ['1-5: tabs'];
 
 	if (activeTab === 'breakdown') {
 		parts.push('\u2191\u2193: navigate', 'Enter: drill down', 'Esc: back');
+	} else if (activeTab === 'projects') {
+		parts.push('\u2191\u2193: navigate', 'Enter: add/open');
 	}
 
 	parts.push('p: project', `r: refresh (${countdown}s)`, 'q: quit');

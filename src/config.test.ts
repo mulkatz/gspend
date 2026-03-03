@@ -17,7 +17,9 @@ vi.mock('./paths.js', () => ({
 	},
 }));
 
-const { ConfigSchema, loadConfig, saveConfig, configExists } = await import('./config.js');
+const { ConfigSchema, loadConfig, saveConfig, configExists, addProjectToConfig } = await import(
+	'./config.js'
+);
 
 const validConfig: Config = {
 	projects: [{ projectId: 'my-project' }],
@@ -117,5 +119,52 @@ describe('configExists', () => {
 	it('returns true after saving config', () => {
 		saveConfig(validConfig);
 		expect(configExists()).toBe(true);
+	});
+});
+
+describe('addProjectToConfig', () => {
+	let tempBase: string;
+
+	beforeEach(() => {
+		tempBase = mkdtempSync(join(tmpdir(), 'gspend-config-test-'));
+		testDir.config = join(tempBase, 'config');
+		testDir.data = join(tempBase, 'data');
+		const { mkdirSync } = require('node:fs');
+		mkdirSync(testDir.config, { recursive: true });
+	});
+
+	afterEach(() => {
+		rmSync(tempBase, { recursive: true, force: true });
+	});
+
+	it('adds a project and returns updated config', () => {
+		const updated = addProjectToConfig(validConfig, {
+			projectId: 'new-project',
+			displayName: 'New Project',
+			billingAccountId: '123-ABC',
+		});
+		expect(updated.projects).toHaveLength(2);
+		expect(updated.projects[1]).toEqual({
+			projectId: 'new-project',
+			displayName: 'New Project',
+			billingAccountId: '123-ABC',
+		});
+	});
+
+	it('preserves existing projects', () => {
+		const updated = addProjectToConfig(validConfig, { projectId: 'another' });
+		expect(updated.projects[0]).toEqual(validConfig.projects[0]);
+	});
+
+	it('persists to disk', () => {
+		addProjectToConfig(validConfig, { projectId: 'persisted' });
+		const loaded = loadConfig();
+		expect(loaded.projects).toHaveLength(2);
+		expect(loaded.projects[1]?.projectId).toBe('persisted');
+	});
+
+	it('handles optional fields', () => {
+		const updated = addProjectToConfig(validConfig, { projectId: 'minimal' });
+		expect(updated.projects[1]).toEqual({ projectId: 'minimal' });
 	});
 });

@@ -69,3 +69,22 @@ export function saveConfig(config: Config): void {
 export function configExists(): boolean {
 	return existsSync(getConfigPath());
 }
+
+export function addProjectToConfig(
+	config: Config,
+	project: { projectId: string; displayName?: string; billingAccountId?: string },
+): Config {
+	const updated: Config = {
+		...config,
+		projects: [
+			...config.projects,
+			{
+				projectId: project.projectId,
+				displayName: project.displayName,
+				billingAccountId: project.billingAccountId,
+			},
+		],
+	};
+	saveConfig(updated);
+	return updated;
+}
