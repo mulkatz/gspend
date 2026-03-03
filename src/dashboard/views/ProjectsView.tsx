@@ -49,18 +49,32 @@ export function ProjectsView({ config, onConfigChange }: ProjectsViewProps): Rea
 		[config, onConfigChange],
 	);
 
-	const handleOpenBillingExport = useCallback((project: ProjectInfo) => {
-		if (!project.billingAccountId) return;
-		const url = `https://console.cloud.google.com/billing/${project.billingAccountId}/export`;
-		openInBrowser(url);
-		setStatusMessage(`Opened browser for ${project.billingAccountId}`);
-		setTimeout(() => setStatusMessage(null), 2000);
-	}, []);
+	const handleOpenBillingExport = useCallback(
+		(project: ProjectInfo) => {
+			if (!project.billingAccountId) return;
+			const url = `https://console.cloud.google.com/billing/${project.billingAccountId}/export`;
+			openInBrowser(url);
+
+			const dataset = config.bigquery.datasetId;
+			const bqProject = config.bigquery.projectId;
+			if (dataset) {
+				setStatusMessage(
+					`Opened browser. Select project "${bqProject}", dataset "${dataset}" on the export page. Press r after setup.`,
+				);
+			} else {
+				setStatusMessage(
+					`Opened browser. Create a dataset (e.g. "billing_export") and enable export. Press r after setup.`,
+				);
+			}
+		},
+		[config],
+	);
 
 	useInput((input, key) => {
 		if (input === 'r') {
 			setRefreshTrigger((n) => n + 1);
 			setSelectedIndex(0);
+			setStatusMessage(null);
 			return;
 		}
 
