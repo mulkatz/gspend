@@ -58,6 +58,12 @@ export function ProjectsView({ config, onConfigChange }: ProjectsViewProps): Rea
 	}, []);
 
 	useInput((input, key) => {
+		if (input === 'r') {
+			setRefreshTrigger((n) => n + 1);
+			setSelectedIndex(0);
+			return;
+		}
+
 		if (navigable.length === 0) return;
 
 		if (key.downArrow) {
@@ -72,9 +78,6 @@ export function ProjectsView({ config, onConfigChange }: ProjectsViewProps): Rea
 			} else {
 				handleOpenBillingExport(item);
 			}
-		} else if (input === 'r') {
-			setRefreshTrigger((n) => n + 1);
-			setSelectedIndex(0);
 		}
 	});
 
