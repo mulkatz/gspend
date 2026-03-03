@@ -39,6 +39,27 @@ function getBqClient(projectId: string): BigQuery {
 	return new BigQuery({ projectId });
 }
 
+export async function ensureDatasetExists(projectId: string, datasetId: string): Promise<void> {
+	const bq = getBqClient(projectId);
+	try {
+		const [exists] = await bq.dataset(datasetId).exists();
+		if (exists) return;
+	} catch {
+		// If exists check fails, try creating anyway
+	}
+
+	try {
+		await bq.createDataset(datasetId, { location: 'US' });
+	} catch (error) {
+		const msg = error instanceof Error ? error.message : String(error);
+		// 409 = already exists (race condition or exists check failed)
+		if (msg.includes('Already Exists') || msg.includes('409')) return;
+		throw new BigQueryError(
+			`Failed to create dataset "${datasetId}" in project "${projectId}": ${msg}`,
+		);
+	}
+}
+
 export async function discoverBillingExport(
 	projectIds: string[],
 ): Promise<DiscoveredExport | null> {

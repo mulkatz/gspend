@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Config } from '../../config.js';
 import { addProjectToConfig } from '../../config.js';
+import { ensureDatasetExists } from '../../gcp/bigquery.js';
 import { openInBrowser } from '../../gcp/browser.js';
 import { ErrorView } from '../components/ErrorView.js';
 import { LoadingView } from '../components/LoadingView.js';
@@ -52,20 +53,25 @@ export function ProjectsView({ config, onConfigChange }: ProjectsViewProps): Rea
 	const handleOpenBillingExport = useCallback(
 		(project: ProjectInfo) => {
 			if (!project.billingAccountId) return;
-			const url = `https://console.cloud.google.com/billing/${project.billingAccountId}/export`;
-			openInBrowser(url);
 
-			const dataset = config.bigquery.datasetId;
 			const bqProject = config.bigquery.projectId;
-			if (dataset) {
-				setStatusMessage(
-					`Opened browser. Select project "${bqProject}", dataset "${dataset}" on the export page. Press r after setup.`,
-				);
-			} else {
-				setStatusMessage(
-					`Opened browser. Create a dataset (e.g. "billing_export") and enable export. Press r after setup.`,
-				);
-			}
+			const datasetId = config.bigquery.datasetId ?? 'billing_export';
+
+			setStatusMessage('Creating dataset...');
+
+			void ensureDatasetExists(bqProject, datasetId).then(
+				() => {
+					const url = `https://console.cloud.google.com/billing/${project.billingAccountId}/export`;
+					openInBrowser(url);
+					setStatusMessage(
+						`Dataset "${datasetId}" ready in project "${bqProject}". Select it on the export page, then press r.`,
+					);
+				},
+				(err: unknown) => {
+					const msg = err instanceof Error ? err.message : String(err);
+					setStatusMessage(`Failed to create dataset: ${msg}`);
+				},
+			);
 		},
 		[config],
 	);
